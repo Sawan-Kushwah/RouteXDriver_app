@@ -1,5 +1,6 @@
 import server from "@/utils/BackendServer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LocaleDirContext } from "@react-navigation/native";
 import axios from "axios";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -11,14 +12,17 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if(loading) return;
     if (!email || !password) {
       setErrorMsg("Please enter email & password");
       return;
     }
 
     try {
+      setLoading(true);
       const res = await axios.post(`${server}/user/login`, { email, password });
 
       if (res.status === 200) {
@@ -35,6 +39,8 @@ export default function LoginScreen() {
     } catch (err) {
       console.log(err);
       setErrorMsg("Server error. Try again");
+    } finally {
+      setLoading(false)
     }
   };
 
@@ -63,7 +69,11 @@ export default function LoginScreen() {
       />
 
       <TouchableOpacity style={styles.btn} onPress={handleLogin}>
-        <Text style={styles.btnText}>Login</Text>
+        {
+          loading ? 
+          <Text style={styles.btnText}>loading...</Text>
+          :  <Text style={styles.btnText}>Login</Text>
+        }
       </TouchableOpacity>
     </View>
   );

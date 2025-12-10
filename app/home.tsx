@@ -1,6 +1,8 @@
 import BusCard from "@/Components/BusCard";
 import server from "@/utils/BackendServer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -8,8 +10,20 @@ import {
     StyleSheet,
     Text,
     TextInput,
+    TouchableOpacity,
     View,
 } from "react-native";
+
+
+const  handelLogout = async () => {
+    try {
+        await AsyncStorage.removeItem("token");
+        await AsyncStorage.removeItem("user");
+        router.replace("/");
+    } catch (err) {
+      console.log(err);
+    }
+}
 
 // ------------ TYPES ----------------
 type Bus = {
@@ -29,7 +43,8 @@ export default function Home() {
     const [filteredRoutes, setFilteredRoutes] = useState<RouteItem[]>([]);
     const [search, setSearch] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(true);
-
+    // const [errorMsg, setErrorMsg] = useState("");
+    
     const fetchData = async () => {
         try {
             const res = await axios.get(`${server}/routes/getAllAssignedRoutes/`);
@@ -38,7 +53,7 @@ export default function Home() {
             setRoutes(data);
             setFilteredRoutes(data);
         } catch (err) {
-            console.log(err);
+            console.log(err); 
         }
         setLoading(false);
     };
@@ -78,10 +93,17 @@ export default function Home() {
     }
 
     return (
+        // <SafeAreaViewBase>
         <ScrollView style={styles.container}>
-            <Text style={styles.headerTitle}>
-                Route<Text style={styles.redColor}>X</Text>
-            </Text>
+            <View style={styles.flex}>
+
+                <Text style={styles.headerTitle}>
+                    Route<Text style={styles.redColor}>X</Text>
+                </Text>
+                <TouchableOpacity style={styles.btn} onPress={handelLogout}>
+                    <Text style={styles.btnText}>Logout</Text>
+                </TouchableOpacity>
+            </View>
 
             <Text style={styles.title}>Select Your Bus Number</Text>
 
@@ -108,6 +130,7 @@ export default function Home() {
                 ))
             )}
         </ScrollView>
+        // </SafeAreaViewBase>
     );
 }
 
@@ -154,4 +177,8 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginTop: 25,
     },
+    btn: { backgroundColor: "red",height: 40 , padding: 8, width: 100, borderRadius: 10 },
+    btnText: { textAlign: "center", color: "#fff", fontSize: 18 },
+    flex: {display: "flex", flexDirection: "row", justifyContent: "space-around"}
+ 
 });
