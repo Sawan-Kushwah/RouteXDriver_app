@@ -1,6 +1,8 @@
 import BusCard from "@/Components/BusCard";
 import server from "@/utils/BackendServer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -8,6 +10,7 @@ import {
     StyleSheet,
     Text,
     TextInput,
+    TouchableOpacity,
     View,
 } from "react-native";
 
@@ -42,6 +45,16 @@ export default function Home() {
         }
         setLoading(false);
     };
+
+    const handelLogout = async () => {
+        try {
+            await AsyncStorage.removeItem("token");
+            await AsyncStorage.removeItem("user");
+            router.replace("/");
+        } catch (err) {
+            console.log(err);
+        }
+    }
 
     useEffect(() => {
         fetchData();
@@ -79,10 +92,16 @@ export default function Home() {
 
     return (
         <ScrollView style={styles.container}>
-            <Text style={styles.headerTitle}>
-                Route<Text style={styles.redColor}>X</Text>
-            </Text>
+            <View style={styles.header}>
 
+                <Text style={styles.headerTitle}>
+                    Route<Text style={styles.redColor}>X</Text>
+                </Text>
+                <TouchableOpacity style={styles.btn} onPress={handelLogout}>
+                    <Text style={styles.btnText}>Logout</Text>
+                </TouchableOpacity>
+
+            </View>
             <Text style={styles.title}>Select Your Bus Number</Text>
 
             <TextInput
@@ -116,6 +135,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#0d0000",
         padding: 16,
+        paddingTop: 30
     },
     loading: {
         flex: 1,
@@ -130,15 +150,7 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginBottom: 20,
     },
-    headerTitle: {
-        fontSize: 32,
-        fontWeight: "900",
-        color: "#fff",
-        marginBottom: 10,
-    },
-    redColor: {
-        color: "red",
-    },
+   
     searchBar: {
         backgroundColor: "#1a1a1a",
         padding: 12,
@@ -153,5 +165,32 @@ const styles = StyleSheet.create({
         fontSize: 18,
         textAlign: "center",
         marginTop: 25,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+
+    btn: {
+        paddingHorizontal: 20,
+        paddingVertical: 6,
+        backgroundColor: '#e22020ff',
+        borderRadius: 6,
+    },
+
+    btnText: {
+        color: '#fff',
+        fontSize: 16,
+    },
+     headerTitle: {
+        fontSize: 32,
+        fontWeight: "900",
+        color: "#fff",
+        marginBottom: 10,
+    },
+    redColor: {
+        color: "red",
     },
 });

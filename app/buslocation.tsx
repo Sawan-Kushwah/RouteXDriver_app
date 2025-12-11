@@ -1,13 +1,15 @@
 import { LOCATION_TASK_NAME } from '@/utils/locationTask'; // make sure this exists
 import socket from '@/utils/socketService';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,18 +17,17 @@ import {
 } from 'react-native';
 
 
-type LocationType = {
-  latitude: number;
-  longitude: number;
-  timestamp: number;
-  accuracy: number;
+type BusInfoType = {
+  busNo: string | number;
+  routeNo: string | number;
+  busId: string;
 };
 
 export default function BusLocationScreen() {
   const { busNo, routeNo, busId } = useLocalSearchParams();
   const [isTracking, setIsTracking] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<LocationType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [currentTrackedBus, setCurrentTrackedBus] = useState<BusInfoType | null>(null)
 
   useEffect(() => {
     checkIfTracking();
@@ -39,6 +40,10 @@ export default function BusLocationScreen() {
       setIsTracking(false);
       return;
     }
+
+    const stored = await AsyncStorage.getItem('BUS_INFO');
+    const busInfo = stored ? JSON.parse(stored) : null;
+    setCurrentTrackedBus(busInfo as BusInfoType)
 
     const isTaskRegistered = await Location.hasStartedLocationUpdatesAsync(
       LOCATION_TASK_NAME
@@ -84,13 +89,14 @@ export default function BusLocationScreen() {
       // store bus info for background task to read
       try {
         await AsyncStorage.setItem('BUS_INFO', JSON.stringify({ busNo, busId, routeNo }));
+        setCurrentTrackedBus({ busId, busNo, routeNo } as BusInfoType)
       } catch (e) {
         console.warn('Failed to store bus info for background task', e);
       }
 
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.High,
-        timeInterval: 10000,
+        timeInterval: 5000,
         distanceInterval: 10,
         foregroundService: {
           notificationTitle: 'Location Tracking',
@@ -99,28 +105,6 @@ export default function BusLocationScreen() {
         pausesUpdatesAutomatically: false,
         showsBackgroundLocationIndicator: true
       });
-
-      // foreground tracking (optional but useful)
-      if (typeof (Location as any).watchPositionAsync === 'function') {
-        await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 5000,
-            distanceInterval: 10
-          },
-          (loc) => {
-            const data = {
-              latitude: loc.coords.latitude ?? 0,
-              longitude: loc.coords.longitude ?? 0,
-              timestamp: loc.timestamp ?? 0,
-              accuracy: loc.coords.accuracy ?? 0
-            };
-            setCurrentLocation(data);
-          }
-        );
-      } else {
-        console.warn('watchPositionAsync not available in this environment');
-      }
 
       setIsTracking(true);
       Alert.alert('Success', 'Location tracking started');
@@ -139,7 +123,6 @@ export default function BusLocationScreen() {
       if (!Location || typeof (Location as any).hasStartedLocationUpdatesAsync !== 'function') {
         console.warn('hasStartedLocationUpdatesAsync is not available in this environment');
         setIsTracking(false);
-        setCurrentLocation(null);
         setLoading(false);
         return;
       }
@@ -163,7 +146,7 @@ export default function BusLocationScreen() {
       }
 
       setIsTracking(false);
-      setCurrentLocation(null);
+      setCurrentTrackedBus(null)
       Alert.alert('Success', 'Tracking stopped');
     } catch (error) {
       console.log(error);
@@ -173,74 +156,112 @@ export default function BusLocationScreen() {
     setLoading(false);
   };
 
+  const handelLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
+      await stopTracking();
+      router.replace("/");
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+
   return (
-    <View style={styles.container}>
-      <View style={styles.headerBox}>
-        <Text style={styles.headerTitle}>RouteX Location Tracker</Text>
+    <ScrollView style={styles.container}>
+      <View >
+        <View style={styles.header}>
 
-        <View style={styles.badgeRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeLabel}>Bus No</Text>
-            <Text style={styles.badgeValue}>{busNo}</Text>
-          </View>
+          <Text style={styles.headerTitle}>
+            Route<Text style={styles.redColor}>X</Text>
+          </Text>
+          <TouchableOpacity style={styles.btn} onPress={handelLogout}>
+            <Text style={styles.btnText}>Logout</Text>
+          </TouchableOpacity>
 
-          <View style={styles.badge}>
-            <Text style={styles.badgeLabel}>Route No</Text>
-            <Text style={styles.badgeValue}>{routeNo}</Text>
+        </View>
+        <View style={styles.headerBox}>
+          <Text style={styles.headerTitle2}>Current Bus & Route Details</Text>
+
+          <View style={styles.badgeRow}>
+            <View style={isTracking ? styles.badgeOnTracking : styles.badge}>
+              <Text style={styles.badgeLabel}>Bus No</Text>
+              <Text style={styles.badgeValue}>{busNo}</Text>
+            </View>
+
+            <View style={isTracking ? styles.badgeOnTracking : styles.badge}>
+              <Text style={styles.badgeLabel}>Route No</Text>
+              <Text style={styles.badgeValue}>{routeNo}</Text>
+            </View>
           </View>
         </View>
-      </View>
-      <View style={styles.statusContainer}>
-        <View
-          style={[
-            styles.statusIndicator,
-            { backgroundColor: isTracking ? '#4CAF50' : '#f44336' }
-          ]}
-        />
-        <Text style={styles.statusText}>
-          {isTracking ? 'Tracking Active' : 'Tracking Inactive'}
+
+        {!isTracking &&
+          <View style={styles.statusContainer}>
+            <View style={styles.statusIndicator} />
+            <Text style={styles.statusText}>Tracking Inactive</Text>
+          </View>
+        }
+
+
+        {currentTrackedBus && (
+          <View style={styles.tickContainer}>
+            <Ionicons name="checkmark-circle" size={110} color="#4CAF50" />
+            <Text style={styles.tickText}>Location transmission activated</Text>
+          </View>
+        )}
+
+
+        {currentTrackedBus && (
+          <View style={styles.locationContainer}>
+            <Text style={styles.locationLabel}>Live tracking is running for :</Text>
+            <Text style={{ color: 'green', fontWeight: 'bold', fontSize: 17, textAlign: 'left' }}>
+              Bus No : {currentTrackedBus.busNo}
+            </Text>
+            <Text style={{ color: 'green', fontWeight: 'bold', fontSize: 17, marginBottom: 10, textAlign: 'right' }}>
+              Route No {currentTrackedBus.routeNo}
+            </Text>
+            <Text style={{ color: 'grey', fontSize: 13, textAlign: 'center' }}>
+              Stop it to switch to another bus.
+            </Text>
+          </View>
+        )}
+
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#333" />
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.button,
+              isTracking ? styles.stopButton : styles.startButton
+            ]}
+            onPress={isTracking ? stopTracking : startTracking}
+          >
+            <Text style={styles.buttonText}>
+              {isTracking ? 'Stop Tracking' : 'Start Tracking'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <Text style={styles.infoText}>
+          This app tracks your location in the background.
         </Text>
       </View>
+    </ScrollView>
 
-      {currentLocation && (
-        <View style={styles.locationContainer}>
-          <Text style={styles.locationLabel}>Current Location:</Text>
-          <Text style={styles.locationText}>
-            Lat: {currentLocation.latitude.toFixed(6)}
-          </Text>
-          <Text style={styles.locationText}>
-            Lng: {currentLocation.longitude.toFixed(6)}
-          </Text>
-          <Text style={styles.locationText}>
-            Accuracy: {currentLocation.accuracy?.toFixed(2)} m
-          </Text>
-        </View>
-      )}
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#333" />
-      ) : (
-        <TouchableOpacity
-          style={[
-            styles.button,
-            isTracking ? styles.stopButton : styles.startButton
-          ]}
-          onPress={isTracking ? stopTracking : startTracking}
-        >
-          <Text style={styles.buttonText}>
-            {isTracking ? 'Stop Tracking' : 'Start Tracking'}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      <Text style={styles.infoText}>
-        This app tracks your location in the background.
-      </Text>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0d0000",
+    padding: 16,
+     paddingTop: 30
+  },
+
   headerBox: {
     width: '100%',
     marginBottom: 30,
@@ -248,7 +269,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
 
-  headerTitle: {
+  headerTitle2: {
     fontSize: 24,
     fontWeight: '800',
     color: '#FFFFFF',
@@ -272,7 +293,22 @@ const styles = StyleSheet.create({
     minWidth: 100,
     alignItems: 'center',
 
-    shadowColor: '#FF003C',
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    elevation: 6
+  },
+
+  badgeOnTracking: {
+    backgroundColor: 'rgba(22, 248, 45, 0.17)',
+    borderColor: 'rgba(0, 255, 47, 0.35)',
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    minWidth: 100,
+    alignItems: 'center',
+
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 8,
@@ -292,12 +328,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: 0.5
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0B0D',   // deep dark
-    padding: 20,
-    paddingTop: 60
   },
 
   title: {
@@ -319,7 +349,8 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginRight: 10
+    marginRight: 10,
+    backgroundColor: '#f44336'
   },
 
   statusText: {
@@ -375,7 +406,7 @@ const styles = StyleSheet.create({
   },
 
   stopButton: {
-    backgroundColor: '#A1111F', // darker red
+    backgroundColor: '#1ba111ff', // darker red
   },
 
   buttonText: {
@@ -389,5 +420,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888888',
     textAlign: 'center'
-  }
+  },
+
+  tickContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+
+  tickText: {
+    marginTop: 8,
+    fontSize: 16,
+    color: '#4CAF50',
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+
+  btn: {
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    backgroundColor: '#e22020ff',
+    borderRadius: 6,
+  },
+
+  btnText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#fff",
+    marginBottom: 10,
+  },
+  redColor: {
+    color: "red",
+  },
 });

@@ -4,7 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 const BUS_INFO_KEY = 'BUS_INFO';
-const LAST_TIMESTAMP_KEY = 'LAST_EMITTED_TIMESTAMP';
+// const LAST_TIMESTAMP_KEY = 'LAST_EMITTED_TIMESTAMP';
 
 // Define the background task
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
@@ -22,10 +22,10 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         const location = locations[0];
 
         // Check if this timestamp was already emitted
-        const lastTimestamp = await AsyncStorage.getItem(LAST_TIMESTAMP_KEY);
-        if (lastTimestamp && parseInt(lastTimestamp) === location.timestamp) {
-            return;
-        }
+        // const lastTimestamp = await AsyncStorage.getItem(LAST_TIMESTAMP_KEY);
+        // if (lastTimestamp && parseInt(lastTimestamp) === location.timestamp) {
+        //     return;
+        // }
 
         const stored = await AsyncStorage.getItem(BUS_INFO_KEY);
         const busInfo = stored ? JSON.parse(stored) : null;
@@ -45,7 +45,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         try {
             if (socket && socket.connected) {
                 socket.emit('busUpdate', payload);
-                await AsyncStorage.setItem(LAST_TIMESTAMP_KEY, location.timestamp.toString());
+                // await AsyncStorage.setItem(LAST_TIMESTAMP_KEY, location.timestamp.toString());
             } else {
                 console.log('✗ Socket not connected, skipping payload:', payload);
             }
