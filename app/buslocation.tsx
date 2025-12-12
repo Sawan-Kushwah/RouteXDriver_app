@@ -105,7 +105,18 @@ export default function BusLocationScreen() {
         pausesUpdatesAutomatically: false,
         showsBackgroundLocationIndicator: true
       });
-
+      // await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+      //   timeInterval: 1000 * 10,
+      //   accuracy: Location.Accuracy.Highest,
+      //   distanceInterval: 1,
+      //   deferredUpdatesInterval: 1000,
+      //   foregroundService: {
+      //     killServiceOnDestroy: false,
+      //     notificationTitle: "Using your location",
+      //     notificationBody:
+      //       "To turn off, go back to the app and switch something off.",
+      //   },
+      // });
       setIsTracking(true);
       Alert.alert('Success', 'Location tracking started');
     } catch (error) {
@@ -249,6 +260,7 @@ export default function BusLocationScreen() {
           This app tracks your location in the background.
         </Text>
       </View>
+      {/* <StatusBar style="auto" /> */}
     </ScrollView>
 
   );
@@ -259,7 +271,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0d0000",
     padding: 16,
-     paddingTop: 30
+    paddingTop: 30
   },
 
   headerBox: {
