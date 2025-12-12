@@ -3,7 +3,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 export default function LoginScreen() {
@@ -35,6 +35,9 @@ export default function LoginScreen() {
 
         await AsyncStorage.setItem("token", token);
         await AsyncStorage.setItem("user", JSON.stringify(user));
+        // store expiry timestamp (1 week)
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        await AsyncStorage.setItem("token_expiry", String(Date.now() + oneWeek));
 
         router.replace("/home");
       } else {
@@ -47,6 +50,28 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const checkToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        const expiry = await AsyncStorage.getItem("token_expiry");
+
+        if (token && expiry && Number(expiry) > Date.now()) {
+          router.replace("/home");
+        } else if (expiry && Number(expiry) <= Date.now()) {
+          // expired: clear stored auth
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("user");
+          await AsyncStorage.removeItem("token_expiry");
+        }
+      } catch (e) {
+        console.log('Token check failed', e);
+      }
+    };
+
+    checkToken();
+  }, []);
 
   return (
     <View style={styles.container}>

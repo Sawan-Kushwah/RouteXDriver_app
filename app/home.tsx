@@ -32,6 +32,7 @@ export default function Home() {
     const [filteredRoutes, setFilteredRoutes] = useState<RouteItem[]>([]);
     const [search, setSearch] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(true);
+    const [useremail, setUseremail] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
@@ -50,13 +51,23 @@ export default function Home() {
         try {
             await AsyncStorage.removeItem("token");
             await AsyncStorage.removeItem("user");
+            await AsyncStorage.removeItem("token_expiry");
             router.replace("/");
         } catch (err) {
             console.log(err);
         }
     }
 
+    const getUserDetails = async () => {
+        const store = await AsyncStorage.getItem("user");
+        if (store) {
+            const parsed = JSON.parse(store);
+            setUseremail(parsed?.email)
+        }
+    }
+
     useEffect(() => {
+        getUserDetails();
         fetchData();
     }, []);
 
@@ -92,15 +103,18 @@ export default function Home() {
 
     return (
         <ScrollView style={styles.container}>
-            <View style={styles.header}>
+            <View >
 
-                <Text style={styles.headerTitle}>
-                    Route<Text style={styles.redColor}>X</Text>
-                </Text>
-                <TouchableOpacity style={styles.btn} onPress={handelLogout}>
-                    <Text style={styles.btnText}>Logout</Text>
-                </TouchableOpacity>
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>
+                        Route<Text style={styles.redColor}>X</Text>
+                    </Text>
 
+                    <TouchableOpacity style={styles.btn} onPress={handelLogout}>
+                        <Text style={styles.btnText}>Logout</Text>
+                    </TouchableOpacity>
+                </View>
+                <Text style={{ fontSize: 14, color: 'grey', textAlign: "right" , position:'relative' , top:-16}}>Email : {useremail}</Text>
             </View>
             <Text style={styles.title}>Select Your Bus Number</Text>
 
@@ -150,7 +164,7 @@ const styles = StyleSheet.create({
         textAlign: "center",
         marginBottom: 20,
     },
-   
+
     searchBar: {
         backgroundColor: "#1a1a1a",
         padding: 12,
@@ -184,7 +198,7 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
     },
-     headerTitle: {
+    headerTitle: {
         fontSize: 32,
         fontWeight: "900",
         color: "#fff",
