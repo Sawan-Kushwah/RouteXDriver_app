@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -37,7 +38,21 @@ export default function BusLocationScreen() {
     checkIfTracking();
     requestPermissions();
     getUserDetails();
+    createLocationTrackingChannel();
   }, []);
+
+  const createLocationTrackingChannel = async () => {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('location-tracking-channel', {
+        name: 'Live Location Tracking',
+        importance: Notifications.AndroidImportance.HIGH,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        sound: null,
+        vibrationPattern: null,
+        ongoing: true,
+      } as any);
+    }
+  };
 
   const checkIfTracking = async () => {
     if (!Location || typeof (Location as any).hasStartedLocationUpdatesAsync !== 'function') {
@@ -105,7 +120,7 @@ export default function BusLocationScreen() {
         console.warn('Failed to store bus info for background task', e);
       }
 
-      
+
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         timeInterval: 1000 * 10,
         accuracy: Location.Accuracy.Highest,
@@ -114,11 +129,12 @@ export default function BusLocationScreen() {
         foregroundService: {
           killServiceOnDestroy: false,
           notificationTitle: "RouteX — Tracking active",
-          notificationBody:
-            `Bus ${busNo} — Route ${routeNo} is sharing location.`,
-        },
+          notificationBody: `Bus ${busNo} — Route ${routeNo} is sharing location.`,
+          notificationColor: '#022634ff',
+          notificationChannelId: 'location-tracking-channel',
+        } as any,
       });
- 
+
 
       setIsTracking(true);
       Alert.alert('Success', 'Location tracking started');
@@ -159,7 +175,7 @@ export default function BusLocationScreen() {
         console.warn('Failed to remove bus info from storage', e);
       }
 
-    
+
       setIsTracking(false);
       setCurrentTrackedBus(null)
       Alert.alert('Success', 'Tracking stopped');

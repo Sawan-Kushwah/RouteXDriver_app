@@ -9,12 +9,15 @@ const BUS_INFO_KEY = 'BUS_INFO';
 
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
+    // console.log('⏱️ LOCATION_TASK invoked', { hasData: !!data, locationsCount: data?.locations?.length ?? 0, time: new Date(data.locations[0].timestamp).toLocaleTimeString() });
+
     if (error) {
         console.error('Location task error:', error);
         return;
     }
 
     if (!data || !data.locations || data.locations.length === 0) {
+        console.log('No locations received in background task', { data });
         return;
     }
 
@@ -36,13 +39,16 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             speed: location.coords.speed ?? null,
         };
 
-        console.log(payload, new Date(payload.timestamp).toLocaleTimeString());
+        // console.log('Background payload:', payload, new Date(payload.timestamp).toLocaleTimeString());
 
-        
-        if (socket && socket.connected) {
-            socket.emit('busUpdate', payload);
-        } else {
-            console.log('✗ Socket not connected, skipping payload:', payload);
+        try {
+            if (socket && socket.connected) {
+                socket.emit('busUpdate', payload);
+            } else {
+                console.log('✗ Socket not connected, skipping payload:', payload);
+            }
+        } catch (emitErr) {
+            console.error('Error emitting socket event from background task:', emitErr, payload);
         }
 
     } catch (e) {
