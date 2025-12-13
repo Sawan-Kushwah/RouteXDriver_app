@@ -6,8 +6,7 @@ const LOCATION_TASK_NAME = 'background-location-task';
 const BUS_INFO_KEY = 'BUS_INFO';
 
 
-const stored = await AsyncStorage.getItem(BUS_INFO_KEY);
-const busInfo = stored ? JSON.parse(stored) : null;
+
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     if (error) {
@@ -23,6 +22,8 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         const { locations } = data;
         const location = locations[0];
 
+        const stored = await AsyncStorage.getItem(BUS_INFO_KEY);
+        const busInfo = stored ? JSON.parse(stored) : null;
 
         const payload = {
             lat: location.coords.latitude,
@@ -35,9 +36,9 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             speed: location.coords.speed ?? null,
         };
 
-        console.log(payload, new Date(payload.timestamp).toLocaleTimeString())
+        console.log(payload, new Date(payload.timestamp).toLocaleTimeString());
 
-        // Emit over socket if connected
+        
         if (socket && socket.connected) {
             socket.emit('busUpdate', payload);
         } else {
