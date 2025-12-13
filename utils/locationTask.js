@@ -44,11 +44,46 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         try {
             if (socket && socket.connected) {
                 socket.emit('busUpdate', payload);
-            } else {
-                console.log('✗ Socket not connected, skipping payload:', payload);
+            } else {                
+                // Force disconnect and reconnect
+                if (socket?.disconnected) {
+                    socket.disconnect();
+                }
+                socket.connect();
+                
+                const connectionPromise = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Connection timeout after 8 seconds'));
+                    }, 8000); // 8 second timeout
+                    
+                    const onConnect = () => {
+                        clearTimeout(timeout);
+                        socket.off('connect', onConnect);
+                        socket.off('connect_error', onConnectError);
+                        resolve();
+                    };
+                    
+                    const onConnectError = (error) => {
+                        console.error('Connection error details:', error);
+                        clearTimeout(timeout);
+                        socket.off('connect', onConnect);
+                        socket.off('connect_error', onConnectError);
+                        reject(error);
+                    };
+                    
+                    socket.on('connect', onConnect);
+                    socket.on('connect_error', onConnectError);
+                });
+                
+                try {
+                    await connectionPromise;
+                    socket.emit('busUpdate', payload);
+                } catch (connectionErr) {
+                    console.error('✗ Failed to reconnect socket:', connectionErr?.message, 'Server might be down');
+                }
             }
         } catch (emitErr) {
-            console.error('Error emitting socket event from background task:', emitErr, payload);
+            console.error('Error in socket emit:', emitErr);
         }
 
     } catch (e) {

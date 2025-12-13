@@ -125,7 +125,9 @@ export default function BusLocationScreen() {
         timeInterval: 1000 * 10,
         accuracy: Location.Accuracy.Highest,
         distanceInterval: 1,
-        deferredUpdatesInterval: 1000,
+        deferredUpdatesInterval: 0,
+        deferredUpdatesDistance: 0,
+        pausesUpdatesAutomatically: false,
         foregroundService: {
           killServiceOnDestroy: false,
           notificationTitle: "RouteX — Tracking active",
