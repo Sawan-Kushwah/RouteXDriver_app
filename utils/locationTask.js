@@ -4,28 +4,26 @@ import * as TaskManager from 'expo-task-manager';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 const BUS_INFO_KEY = 'BUS_INFO';
-// const LAST_TIMESTAMP_KEY = 'LAST_EMITTED_TIMESTAMP';
 
-// Define the background task
+
+
+
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
+    // console.log('⏱️ LOCATION_TASK invoked', { hasData: !!data, locationsCount: data?.locations?.length ?? 0, time: new Date(data.locations[0].timestamp).toLocaleTimeString() });
+
     if (error) {
         console.error('Location task error:', error);
         return;
     }
 
     if (!data || !data.locations || data.locations.length === 0) {
+        console.log('No locations received in background task', { data });
         return;
     }
 
     try {
         const { locations } = data;
         const location = locations[0];
-
-        // Check if this timestamp was already emitted
-        // const lastTimestamp = await AsyncStorage.getItem(LAST_TIMESTAMP_KEY);
-        // if (lastTimestamp && parseInt(lastTimestamp) === location.timestamp) {
-        //     return;
-        // }
 
         const stored = await AsyncStorage.getItem(BUS_INFO_KEY);
         const busInfo = stored ? JSON.parse(stored) : null;
@@ -41,17 +39,18 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             speed: location.coords.speed ?? null,
         };
 
-        // Emit over socket if connected
+        // console.log('Background payload:', payload, new Date(payload.timestamp).toLocaleTimeString());
+
         try {
             if (socket && socket.connected) {
                 socket.emit('busUpdate', payload);
-                // await AsyncStorage.setItem(LAST_TIMESTAMP_KEY, location.timestamp.toString());
             } else {
                 console.log('✗ Socket not connected, skipping payload:', payload);
             }
         } catch (emitErr) {
-            console.error('Failed to emit socket event from background task:', emitErr);
+            console.error('Error emitting socket event from background task:', emitErr, payload);
         }
+
     } catch (e) {
         console.error('Error in location task handler:', e);
     }

@@ -3,13 +3,16 @@ import socket from '@/utils/socketService';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -28,11 +31,28 @@ export default function BusLocationScreen() {
   const [isTracking, setIsTracking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentTrackedBus, setCurrentTrackedBus] = useState<BusInfoType | null>(null)
+  const [useremail, setUseremail] = useState<string | null>(null);
+
 
   useEffect(() => {
     checkIfTracking();
     requestPermissions();
+    getUserDetails();
+    createLocationTrackingChannel();
   }, []);
+
+  const createLocationTrackingChannel = async () => {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('location-tracking-channel', {
+        name: 'Live Location Tracking',
+        importance: Notifications.AndroidImportance.HIGH,
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        sound: null,
+        vibrationPattern: null,
+        ongoing: true,
+      } as any);
+    }
+  };
 
   const checkIfTracking = async () => {
     if (!Location || typeof (Location as any).hasStartedLocationUpdatesAsync !== 'function') {
@@ -62,6 +82,12 @@ export default function BusLocationScreen() {
     if (bg !== 'granted') {
       Alert.alert('Background Permission Required', 'Background location permission needed.');
       return false;
+    }
+
+    try {
+      await Notifications.requestPermissionsAsync();
+    } catch (e) {
+      console.warn('Notification permission request failed', e);
     }
 
     return true;
@@ -94,17 +120,21 @@ export default function BusLocationScreen() {
         console.warn('Failed to store bus info for background task', e);
       }
 
+
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 5000,
-        distanceInterval: 10,
+        timeInterval: 1000 * 10,
+        accuracy: Location.Accuracy.Highest,
+        distanceInterval: 1,
+        deferredUpdatesInterval: 1000,
         foregroundService: {
-          notificationTitle: 'Location Tracking',
-          notificationBody: 'Your location is being tracked'
-        },
-        pausesUpdatesAutomatically: false,
-        showsBackgroundLocationIndicator: true
+          killServiceOnDestroy: false,
+          notificationTitle: "RouteX — Tracking active",
+          notificationBody: `Bus ${busNo} — Route ${routeNo} is sharing location.`,
+          notificationColor: '#022634ff',
+          notificationChannelId: 'location-tracking-channel',
+        } as any,
       });
+
 
       setIsTracking(true);
       Alert.alert('Success', 'Location tracking started');
@@ -145,6 +175,7 @@ export default function BusLocationScreen() {
         console.warn('Failed to remove bus info from storage', e);
       }
 
+
       setIsTracking(false);
       setCurrentTrackedBus(null)
       Alert.alert('Success', 'Tracking stopped');
@@ -160,6 +191,7 @@ export default function BusLocationScreen() {
     try {
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("user");
+      await AsyncStorage.removeItem("token_expiry");
       await stopTracking();
       router.replace("/");
     } catch (err) {
@@ -167,19 +199,29 @@ export default function BusLocationScreen() {
     }
   }
 
+  const getUserDetails = async () => {
+    const store = await AsyncStorage.getItem("user");
+    if (store) {
+      const parsed = JSON.parse(store);
+      setUseremail(parsed?.email)
+    }
+  }
 
   return (
     <ScrollView style={styles.container}>
       <View >
-        <View style={styles.header}>
+        <View >
 
-          <Text style={styles.headerTitle}>
-            Route<Text style={styles.redColor}>X</Text>
-          </Text>
-          <TouchableOpacity style={styles.btn} onPress={handelLogout}>
-            <Text style={styles.btnText}>Logout</Text>
-          </TouchableOpacity>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>
+              Route<Text style={styles.redColor}>X</Text>
+            </Text>
 
+            <TouchableOpacity style={styles.btn} onPress={handelLogout}>
+              <Text style={styles.btnText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={{ fontSize: 14, color: 'grey', textAlign: "right", position: 'relative', top: -16 }}>Email : {useremail}</Text>
         </View>
         <View style={styles.headerBox}>
           <Text style={styles.headerTitle2}>Current Bus & Route Details</Text>
@@ -249,6 +291,7 @@ export default function BusLocationScreen() {
           This app tracks your location in the background.
         </Text>
       </View>
+      <StatusBar />
     </ScrollView>
 
   );
@@ -259,7 +302,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0d0000",
     padding: 16,
-     paddingTop: 30
+    paddingTop: 30
   },
 
   headerBox: {
